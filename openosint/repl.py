@@ -279,7 +279,7 @@ class OpenOSINTRepl:
         provider: str = "anthropic",
         ollama_model: str = "llama3.2",
         ollama_host: str = "http://localhost:11434",
-        openai_base_url: str = "http://localhost:8080/v1",
+        openai_base_url: str = "http://localhost:4000/v1",
         openai_model: str = "gpt-4o-mini",
         openai_api_key: str | None = None,
         is_pdf_disabled: bool = False,
@@ -309,7 +309,7 @@ class OpenOSINTRepl:
             self._display_model = openai_model
         else:
             self._agent = OpenOSINTAgent(api_key=self._api_key)
-            self._display_model = "claude-sonnet-4-20250514"
+            self._display_model = self._agent.model
 
         self._last_response: str = ""
         self._session_start: datetime = datetime.now()

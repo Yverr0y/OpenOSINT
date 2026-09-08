@@ -46,9 +46,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from dotenv import load_dotenv
 from sse_starlette.sse import EventSourceResponse
 
+from openosint.agent import default_anthropic_model
 from openosint.brightdata import BRIGHTDATA_LINK_WEB
 from openosint.tools.generate_dorks import run_dork_osint
 from openosint.tools.scrape_url import run_scrape_url_osint
@@ -850,7 +850,7 @@ def _reject_client_backend() -> None:
 async def _validate_outbound_base_url(url: str) -> str:
     """Validate a client-supplied backend base URL before it is used for an
     outbound request. Only ever called for request-supplied URLs — env-
-    configured defaults (OPENAI_BASE_URL, the localhost:8080/11434 fallbacks)
+    configured defaults (OPENAI_BASE_URL, the localhost:4000/11434 fallbacks)
     skip this entirely so they keep working unconditionally.
 
     Policy:
@@ -1128,7 +1128,7 @@ async def _stream_claude(messages: list[dict]) -> AsyncIterator[dict]:
 
         try:
             async with client.messages.stream(
-                model="claude-sonnet-4-5",
+                model=default_anthropic_model(),
                 max_tokens=4096,
                 system=system_prompt,
                 tools=_CLAUDE_TOOLS,
@@ -2022,7 +2022,7 @@ def create_app(host: str | None = None) -> FastAPI:
                 openai_base_url = await _validate_outbound_base_url(req.openai_base_url)
                 openai_api_key = (req.openai_api_key or "").strip()  # no os.environ fallback, ever
             else:
-                openai_base_url = os.environ.get("OPENAI_BASE_URL", "http://localhost:8080/v1")
+                openai_base_url = os.environ.get("OPENAI_BASE_URL", "http://localhost:4000/v1")
                 openai_api_key = os.environ.get("OPENAI_API_KEY", "")
             openai_model = (req.openai_model or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")).strip()
         elif backend == "ollama":

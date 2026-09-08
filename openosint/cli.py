@@ -176,12 +176,13 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--openai-base-url",
         type=str,
-        default=os.environ.get("OPENAI_BASE_URL", "http://localhost:8080/v1"),
+        default=os.environ.get("OPENAI_BASE_URL", "http://localhost:4000/v1"),
         metavar="URL",
         help=(
-            "Base URL of an OpenAI-compatible endpoint (LiteLLM, llama-swap, vLLM, …).  "
-            "Used when --provider openai.  Default: $OPENAI_BASE_URL or "
-            "http://localhost:8080/v1."
+            "Base URL of a self-hosted OpenAI-compatible endpoint (LiteLLM, "
+            "llama-swap, vLLM, LM Studio, …).  Used when --provider openai.  "
+            "Default: $OPENAI_BASE_URL or http://localhost:4000/v1.  To reach "
+            "hosted OpenAI instead, pass https://api.openai.com/v1."
         ),
     )
     parser.add_argument(
@@ -1070,7 +1071,7 @@ async def _async_main() -> None:
             provider=getattr(args, "provider", "anthropic"),
             ollama_model=getattr(args, "ollama_model", "llama3.2"),
             ollama_host=getattr(args, "ollama_host", "http://localhost:11434"),
-            openai_base_url=getattr(args, "openai_base_url", "http://localhost:8080/v1"),
+            openai_base_url=getattr(args, "openai_base_url", "http://localhost:4000/v1"),
             openai_model=getattr(args, "openai_model", "gpt-4o-mini"),
             openai_api_key=getattr(args, "openai_api_key", None),
             is_pdf_disabled=getattr(args, "is_pdf_disabled", False),
