@@ -50,6 +50,21 @@ logger = logging.getLogger(__name__)
 
 _MAX_TOKENS = 4096
 
+# Pinned deliberately. Dateless Claude model IDs are NOT evergreen
+# pointers — from the 4.6 generation on, a dateless ID maps to one
+# fixed snapshot. Revisit when a newer Sonnet ships.
+# Override at runtime with OPENOSINT_MODEL.  (reviewed 2026-09)
+DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-5"
+
+
+def default_anthropic_model() -> str:
+    """Return the Anthropic model to use, honouring OPENOSINT_MODEL if set.
+
+    Resolved at call time (not as a module-level import-time constant) so a
+    .env loaded later by the entry point is always honoured.
+    """
+    return os.environ.get("OPENOSINT_MODEL") or DEFAULT_ANTHROPIC_MODEL
+
 # ---------------------------------------------------------------------------
 # Tool definitions — Anthropic format
 # ---------------------------------------------------------------------------
@@ -629,12 +644,12 @@ class OpenOSINTAgent:
     def __init__(
         self,
         api_key: str | None = None,
-        model: str = "claude-sonnet-4-20250514",
+        model: str | None = None,
     ) -> None:
         self.client = anthropic.AsyncAnthropic(
             api_key=api_key or os.environ.get("ANTHROPIC_API_KEY", "")
         )
-        self.model = model
+        self.model = model or default_anthropic_model()
         self.history: list[dict[str, Any]] = []
 
     def clear_history(self) -> None:
@@ -906,7 +921,7 @@ class OpenAICompatibleAgent:
     def __init__(
         self,
         model: str = "gpt-4o-mini",
-        base_url: str = "http://localhost:8080/v1",
+        base_url: str = "http://localhost:4000/v1",
         api_key: str | None = None,
     ) -> None:
         self.model = model
@@ -995,10 +1010,16 @@ class OpenAICompatibleAgent:
                 content="",
                 error=(
                     f"[ERROR] Cannot reach the OpenAI-compatible server at {self.base_url}\n\n"
-                    "Verify the base URL is correct and the server is running, e.g.:\n"
+                    "This provider expects a self-hosted OpenAI-compatible gateway "
+                    "(LiteLLM, vLLM, LM Studio, llama.cpp, …) — it does NOT talk to "
+                    "OpenAI's own API by default. Verify your server is running, e.g.:\n"
                     "  openosint --provider openai \\\n"
                     "    --openai-base-url http://localhost:4000/v1 \\\n"
-                    "    --openai-model gpt-4o-mini"
+                    "    --openai-model gpt-4o-mini\n\n"
+                    "To reach hosted OpenAI instead, set:\n"
+                    "  OPENAI_BASE_URL=https://api.openai.com/v1\n"
+                    "  OPENAI_API_KEY=sk-...\n"
+                    "  openosint --provider openai --openai-model gpt-4o"
                 ),
             )
         except Exception as exc:

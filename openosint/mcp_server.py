@@ -15,36 +15,78 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+from pathlib import Path
 from typing import Any
 
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
-from mcp.types import CallToolResult, TextContent, Tool
+from dotenv import find_dotenv, load_dotenv
 
-from openosint.json_output import to_json
-from openosint.tools.generate_dorks import run_dork_osint
-from openosint.tools.scrape_url import run_scrape_url_osint
-from openosint.tools.search_abuseipdb import run_abuseipdb_osint
-from openosint.tools.search_breach import run_breach_osint
-from openosint.tools.search_censys import run_censys_osint
-from openosint.tools.search_dns import run_dns_osint
-from openosint.tools.search_domain import run_domain_osint
-from openosint.tools.search_dorks_live import run_dorks_live_osint
-from openosint.tools.search_email import run_email_osint
-from openosint.tools.search_gdelt_geo import run_gdelt_geo_osint, split_geojson_fence
-from openosint.tools.search_github import run_github_osint
-from openosint.tools.search_ip import run_ip_osint
-from openosint.tools.search_ip2location import run_ip2location_osint
-from openosint.tools.search_paste import run_paste_osint
-from openosint.tools.search_phone import run_phone_osint
-from openosint.tools.search_shodan import run_shodan_osint
-from openosint.tools.search_username import run_username_osint
-from openosint.tools.search_virustotal import run_virustotal_osint
-from openosint.tools.search_whois import run_whois_osint
-from openosint.tools.search_footprint import run_footprint_osint
+logger = logging.getLogger(__name__)
+
+
+# MCP clients launch this entrypoint with an arbitrary cwd (not necessarily
+# the repo checkout), AND this package may be a normal (non-editable) pip
+# install, in which case anchoring purely on __file__ resolves into
+# site-packages/.env — a path no user will ever populate, leaving someone
+# who runs the server by hand from a directory containing .env worse off
+# than before this cascade existed. Most-specific override first:
+#   1. OPENOSINT_ENV_FILE, if set — fail loudly on a typo'd path rather
+#      than silently loading nothing.
+#   2. the repo-root .env, if this is a source/editable checkout.
+#   3. python-dotenv's own cwd-upward search, covering "installed via pip,
+#      run by hand from a directory containing .env".
+# override=False throughout: real env vars from the client's own MCP
+# config always win over anything in the file, in every branch.
+def _resolve_dotenv_path() -> str:
+    explicit = os.environ.get("OPENOSINT_ENV_FILE", "").strip()
+    if explicit:
+        if not Path(explicit).is_file():
+            raise FileNotFoundError(f"OPENOSINT_ENV_FILE={explicit!r} does not exist.")
+        logger.debug("Loading .env from OPENOSINT_ENV_FILE: %s", explicit)
+        return explicit
+
+    repo_root_env = Path(__file__).resolve().parent.parent / ".env"
+    if repo_root_env.is_file():
+        logger.debug("Loading .env from repo root: %s", repo_root_env)
+        return str(repo_root_env)
+
+    cwd_env = find_dotenv(usecwd=True)
+    logger.debug("Loading .env via cwd search: %s", cwd_env or "(none found)")
+    return cwd_env
+
+
+# Must run before the tool-module imports below, several of which read
+# os.environ (API keys) at call time — keep this above them; a future
+# isort/ruff autofix must not reorder it past those imports.
+load_dotenv(dotenv_path=_resolve_dotenv_path(), override=False)
+
+from mcp.server import Server  # noqa: E402
+from mcp.server.stdio import stdio_server  # noqa: E402
+from mcp.types import CallToolResult, TextContent, Tool  # noqa: E402
+
+from openosint.json_output import to_json  # noqa: E402
+from openosint.tools.generate_dorks import run_dork_osint  # noqa: E402
+from openosint.tools.scrape_url import run_scrape_url_osint  # noqa: E402
+from openosint.tools.search_abuseipdb import run_abuseipdb_osint  # noqa: E402
+from openosint.tools.search_breach import run_breach_osint  # noqa: E402
+from openosint.tools.search_censys import run_censys_osint  # noqa: E402
+from openosint.tools.search_dns import run_dns_osint  # noqa: E402
+from openosint.tools.search_domain import run_domain_osint  # noqa: E402
+from openosint.tools.search_dorks_live import run_dorks_live_osint  # noqa: E402
+from openosint.tools.search_email import run_email_osint  # noqa: E402
+from openosint.tools.search_gdelt_geo import run_gdelt_geo_osint, split_geojson_fence  # noqa: E402
+from openosint.tools.search_github import run_github_osint  # noqa: E402
+from openosint.tools.search_ip import run_ip_osint  # noqa: E402
+from openosint.tools.search_ip2location import run_ip2location_osint  # noqa: E402
+from openosint.tools.search_paste import run_paste_osint  # noqa: E402
+from openosint.tools.search_phone import run_phone_osint  # noqa: E402
+from openosint.tools.search_shodan import run_shodan_osint  # noqa: E402
+from openosint.tools.search_username import run_username_osint  # noqa: E402
+from openosint.tools.search_virustotal import run_virustotal_osint  # noqa: E402
+from openosint.tools.search_whois import run_whois_osint  # noqa: E402
+from openosint.tools.search_footprint import run_footprint_osint  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="[MCP] %(levelname)s: %(message)s")
-logger = logging.getLogger(__name__)
 app = Server("openosint")
 
 _JSON_PROP = {
